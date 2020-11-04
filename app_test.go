@@ -34,20 +34,21 @@ func TestPushNewItems(t *testing.T) {
 	pushNewItems(memTitles, feed, bot, env)
 	newTitle := feed.Items[0].Title
 	assert.Equal(t, newTitle, "Foo")
-	assert.Equal(t, memTitles, []string{"Foo", "Bar"})
 }
 
 func TestFormatMessage(t *testing.T) {
 	message := `
 		<b>Title</b><br />
-		1. First <br />
+		1. First<br />
 		2. Second
 	`
 
 	result := `
-	<b>Title</b>
-	> 1. First
-	> 2. Second
+		<b>Title</b>
+
+		1. First
+
+		2. Second
 	`
 	assert.Equal(t, formatMessage(message), result)
 }
