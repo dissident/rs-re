@@ -19,6 +19,7 @@ type Env struct {
 	feedURL         string
 	telegramToken   string
 	telegramChannel int64
+	teakInterval    string
 }
 
 func main() {
@@ -39,17 +40,21 @@ func main() {
 		newTitles := pushNewItems(memTitles, feed, bot, env)
 		memTitles = newTitles
 		PrintMemUsage()
-		time.Sleep(5000 * time.Millisecond)
+		sleepDuration, err := time.ParseDuration(env.teakInterval)
+		failOnError(err, "Failed to parse TEAK_INTERVAL ENV as a time.Duration")
+		time.Sleep(sleepDuration)
 	}
 }
 
 func initEnvironment() Env {
 	feedURL := os.Getenv("FEED_URL")
+	teakInterval := os.Getenv("TEAK_INTERVAL")
+
 	telegramToken := os.Getenv("TELEGRAM_TOKEN")
 	telegramChannel, err := strconv.ParseInt(os.Getenv("CHAT_ID"), 10, 64)
-	failOnError(err, "Failed to parse telegramChannel ENV")
+	failOnError(err, "Failed to parse CHAT_ID ENV")
 
-	return Env{feedURL, telegramToken, telegramChannel}
+	return Env{feedURL, telegramToken, telegramChannel, teakInterval}
 }
 
 func failOnError(err error, msg string) {
@@ -58,10 +63,11 @@ func failOnError(err error, msg string) {
 	}
 }
 
-func sendMessage(message string, bot *tgbotapi.BotAPI, env Env) {
+func sendMessage(message string, bot *tgbotapi.BotAPI, env Env) error {
 	msg := tgbotapi.NewMessage(env.telegramChannel, formatMessage(message))
 	msg.ParseMode = "HTML"
-	bot.Send(msg)
+	_, err := bot.Send(msg)
+	return err
 }
 
 func pushNewItems(memTitles []string, feed *gofeed.Feed, bot *tgbotapi.BotAPI, env Env) []string {
@@ -72,7 +78,11 @@ func pushNewItems(memTitles []string, feed *gofeed.Feed, bot *tgbotapi.BotAPI, e
 			log.Printf(item.Title)
 			log.Printf(item.Link)
 			sendMessage(item.Title, bot, env)
-			sendMessage(item.Content, bot, env)
+			err := sendMessage(item.Content, bot, env)
+			if err != nil {
+				sendMessage("Content body can't be sended. Use a link >", bot, env)
+				sendMessage(item.Link, bot, env)
+			}
 		}
 		newTitles = append(newTitles, item.Title)
 	}
