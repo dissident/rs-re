@@ -59,7 +59,8 @@ func failOnError(err error, msg string) {
 }
 
 func sendMessage(message string, bot *tgbotapi.BotAPI, env Env) {
-	msg := tgbotapi.NewMessage(env.telegramChannel, message)
+	msg := tgbotapi.NewMessage(env.telegramChannel, formatMessage(message))
+	msg.ParseMode = "HTML"
 	bot.Send(msg)
 }
 
@@ -79,7 +80,7 @@ func pushNewItems(memTitles []string, feed *gofeed.Feed, bot *tgbotapi.BotAPI, e
 }
 
 func formatMessage(message string) string {
-	return strings.Replace(message, "<br />", ">", -1)
+	return strings.Replace(message, "<br />", "\n", -1)
 }
 
 func memTitlesContains(s []string, e string) bool {
