@@ -1,14 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
-	"runtime"
 	"strconv"
-	"strings"
 	"time"
 
+	"github.com/dissident/rs-re/support"
+	"github.com/dissident/rs-re/tg"
 	"github.com/joho/godotenv"
 	"github.com/mmcdole/gofeed"
 
@@ -25,7 +24,7 @@ type Env struct {
 func main() {
 	godotenv.Load()
 	env := initEnvironment()
-	bot, err := tgbotapi.NewBotAPI(env.telegramToken)
+	bot, err := tg.InitBot(env.telegramToken)
 	failOnError(err, "Failed tgbotapi.NewBotAPI initialize")
 
 	memTitles := []string{}
@@ -37,16 +36,16 @@ func main() {
 
 		log.Printf("Fetching RSS feed...")
 
-		newTitles := pushNewItems(memTitles, feed, bot, env)
+		newTitles := pushNewItems(memTitles, feed, bot, *env)
 		memTitles = newTitles
-		PrintMemUsage()
+		support.PrintMemUsage()
 		sleepDuration, err := time.ParseDuration(env.teakInterval)
 		failOnError(err, "Failed to parse TEAK_INTERVAL ENV as a time.Duration")
 		time.Sleep(sleepDuration)
 	}
 }
 
-func initEnvironment() Env {
+func initEnvironment() *Env {
 	feedURL := os.Getenv("FEED_URL")
 	teakInterval := os.Getenv("TEAK_INTERVAL")
 
@@ -54,20 +53,13 @@ func initEnvironment() Env {
 	telegramChannel, err := strconv.ParseInt(os.Getenv("CHAT_ID"), 10, 64)
 	failOnError(err, "Failed to parse CHAT_ID ENV")
 
-	return Env{feedURL, telegramToken, telegramChannel, teakInterval}
+	return &Env{feedURL, telegramToken, telegramChannel, teakInterval}
 }
 
 func failOnError(err error, msg string) {
 	if err != nil {
 		log.Fatalf("%s: %s", msg, err)
 	}
-}
-
-func sendMessage(message string, bot *tgbotapi.BotAPI, env Env) error {
-	msg := tgbotapi.NewMessage(env.telegramChannel, formatMessage(message))
-	msg.ParseMode = "HTML"
-	_, err := bot.Send(msg)
-	return err
 }
 
 func pushNewItems(memTitles []string, feed *gofeed.Feed, bot *tgbotapi.BotAPI, env Env) []string {
@@ -77,20 +69,16 @@ func pushNewItems(memTitles []string, feed *gofeed.Feed, bot *tgbotapi.BotAPI, e
 		if !isPresent {
 			log.Printf(item.Title)
 			log.Printf(item.Link)
-			sendMessage(item.Title, bot, env)
-			err := sendMessage(item.Content, bot, env)
+			tg.SendMessage(item.Title, bot, env.telegramChannel)
+			err := tg.SendMessage(item.Content, bot, env.telegramChannel)
 			if err != nil {
-				sendMessage("Content body can't be sended. Use a link >", bot, env)
-				sendMessage(item.Link, bot, env)
+				tg.SendMessage("Content body can't be sended. Use a link >", bot, env.telegramChannel)
+				tg.SendMessage(item.Link, bot, env.telegramChannel)
 			}
 		}
 		newTitles = append(newTitles, item.Title)
 	}
 	return newTitles
-}
-
-func formatMessage(message string) string {
-	return strings.Replace(message, "<br />", "\n", -1)
 }
 
 func memTitlesContains(s []string, e string) bool {
@@ -100,18 +88,4 @@ func memTitlesContains(s []string, e string) bool {
 		}
 	}
 	return false
-}
-
-func PrintMemUsage() {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
-	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
-	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
-	fmt.Printf("\tNumGC = %v\n", m.NumGC)
-}
-
-func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
 }
