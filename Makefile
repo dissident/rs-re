@@ -1,10 +1,9 @@
-default: run
+default: build run
+
+build:
+	docker build -t my-golang-app .
 
 run:
-	@go run *.go
+	docker run -it --rm --name my-running-app my-golang-app
 
-test:
-	@go test -v -cover
-
-.PHONY: fmt test
-
+.PHONY: bin/example
