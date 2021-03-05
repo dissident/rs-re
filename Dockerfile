@@ -1,6 +1,8 @@
-FROM golang:1.14.3-alpine AS build
+FROM rs-re-base AS build
 WORKDIR /src
 COPY . .
-RUN go build -o /out/example .
+# RUN go build -o /out/example .
 
-CMD ["/out/example"]
+RUN go run *.go
+
+# CMD ["/out/example"]

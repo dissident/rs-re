@@ -1,9 +1,18 @@
-default: build run
+.PHONY: bin/example
+
+default: build run clean
+
+build-base:
+	docker build -t rs-re-base -f Dockerfile.base .
 
 build:
-	docker build -t my-golang-app .
+	docker build -t rs-re --cache-from rs-re-base .
 
 run:
-	docker run -it --rm --name my-running-app my-golang-app
+	docker run -it --rm --name rs-re rs-re
 
-.PHONY: bin/example
+clean-c:
+	docker rm $$(docker ps -a -q)
+
+clean:
+	docker image rm $$(docker images rs-re:latest -q)
