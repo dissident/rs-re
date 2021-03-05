@@ -8,4 +8,5 @@ require (
 	github.com/mmcdole/gofeed v1.1.0
 	github.com/stretchr/testify v1.6.1
 	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
+	go.mongodb.org/mongo-driver v1.4.6
 )
