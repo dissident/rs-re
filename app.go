@@ -34,9 +34,7 @@ func main() {
 
 	memTitles := []string{}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(env.mongoURL))
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(env.mongoURL))
 	failOnError(err, "Failed connect to mongo")
 	collection := client.Database("rs-re").Collection("upworks")
 
@@ -47,7 +45,7 @@ func main() {
 
 		log.Printf("Fetching RSS feed...")
 
-		newTitles := pushNewItems(memTitles, feed, bot, *env, collection, ctx)
+		newTitles := pushNewItems(memTitles, feed, bot, *env, collection)
 		memTitles = newTitles
 		support.PrintMemUsage()
 		sleepDuration, err := time.ParseDuration(env.teakInterval)
@@ -74,7 +72,7 @@ func failOnError(err error, msg string) {
 	}
 }
 
-func pushNewItems(memTitles []string, feed *gofeed.Feed, bot *tgbotapi.BotAPI, env Env, collection *mongo.Collection, ctx context.Context) []string {
+func pushNewItems(memTitles []string, feed *gofeed.Feed, bot *tgbotapi.BotAPI, env Env, collection *mongo.Collection) []string {
 	newTitles := []string{}
 	for _, item := range feed.Items {
 		isPresent := memTitlesContains(memTitles, item.Title)
@@ -82,7 +80,9 @@ func pushNewItems(memTitles []string, feed *gofeed.Feed, bot *tgbotapi.BotAPI, e
 			log.Printf(item.Title)
 			log.Printf(item.Link)
 			tg.SendMessage(item.Title, bot, env.telegramChannel)
-			collection.InsertOne(ctx, bson.D{{"title", item.Title}, {"body", item.Content}})
+			ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+			_, error := collection.InsertOne(ctx, bson.D{{"title", item.Title}, {"body", item.Content}})
+			failOnError(error, item.Title)
 			err := tg.SendMessage(item.Content, bot, env.telegramChannel)
 			if err != nil {
 				tg.SendMessage("Content body can't be sended. Use a link >", bot, env.telegramChannel)
