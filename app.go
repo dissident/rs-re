@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"strconv"
@@ -10,12 +11,16 @@ import (
 	"github.com/dissident/rs-re/tg"
 	"github.com/joho/godotenv"
 	"github.com/mmcdole/gofeed"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 type Env struct {
 	feedURL         string
+	mongoURL        string
 	telegramToken   string
 	telegramChannel int64
 	teakInterval    string
@@ -29,6 +34,10 @@ func main() {
 
 	memTitles := []string{}
 
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(env.mongoURL))
+	failOnError(err, "Failed connect to mongo")
+	collection := client.Database("rs-re").Collection("upworks")
+
 	for {
 		fp := gofeed.NewParser()
 		feed, err := fp.ParseURL(env.feedURL)
@@ -36,7 +45,7 @@ func main() {
 
 		log.Printf("Fetching RSS feed...")
 
-		newTitles := pushNewItems(memTitles, feed, bot, *env)
+		newTitles := pushNewItems(memTitles, feed, bot, *env, collection)
 		memTitles = newTitles
 		support.PrintMemUsage()
 		sleepDuration, err := time.ParseDuration(env.teakInterval)
@@ -47,13 +56,14 @@ func main() {
 
 func initEnvironment() *Env {
 	feedURL := os.Getenv("FEED_URL")
+	mongoURL := os.Getenv("MONGO_URL")
 	teakInterval := os.Getenv("TEAK_INTERVAL")
 
 	telegramToken := os.Getenv("TELEGRAM_TOKEN")
 	telegramChannel, err := strconv.ParseInt(os.Getenv("CHAT_ID"), 10, 64)
 	failOnError(err, "Failed to parse CHAT_ID ENV")
 
-	return &Env{feedURL, telegramToken, telegramChannel, teakInterval}
+	return &Env{feedURL, mongoURL, telegramToken, telegramChannel, teakInterval}
 }
 
 func failOnError(err error, msg string) {
@@ -62,7 +72,7 @@ func failOnError(err error, msg string) {
 	}
 }
 
-func pushNewItems(memTitles []string, feed *gofeed.Feed, bot *tgbotapi.BotAPI, env Env) []string {
+func pushNewItems(memTitles []string, feed *gofeed.Feed, bot *tgbotapi.BotAPI, env Env, collection *mongo.Collection) []string {
 	newTitles := []string{}
 	for _, item := range feed.Items {
 		isPresent := memTitlesContains(memTitles, item.Title)
@@ -70,6 +80,9 @@ func pushNewItems(memTitles []string, feed *gofeed.Feed, bot *tgbotapi.BotAPI, e
 			log.Printf(item.Title)
 			log.Printf(item.Link)
 			tg.SendMessage(item.Title, bot, env.telegramChannel)
+			ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+			_, error := collection.InsertOne(ctx, bson.D{{"title", item.Title}, {"body", item.Content}})
+			failOnError(error, item.Title)
 			err := tg.SendMessage(item.Content, bot, env.telegramChannel)
 			if err != nil {
 				tg.SendMessage("Content body can't be sended. Use a link >", bot, env.telegramChannel)
