@@ -24,6 +24,8 @@ type Env struct {
 	telegramToken   string
 	telegramChannel int64
 	teakInterval    string
+	db              string
+	collection      string
 }
 
 func main() {
@@ -36,7 +38,7 @@ func main() {
 
 	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(env.mongoURL))
 	failOnError(err, "Failed connect to mongo")
-	collection := client.Database("rs-re").Collection("upworks")
+	collection := client.Database(env.db).Collection(env.collection)
 
 	for {
 		fp := gofeed.NewParser()
@@ -57,13 +59,23 @@ func main() {
 func initEnvironment() *Env {
 	feedURL := os.Getenv("FEED_URL")
 	mongoURL := os.Getenv("MONGO_URL")
+	db := os.Getenv("DB")
+	collection := os.Getenv("COLLECTION")
 	teakInterval := os.Getenv("TEAK_INTERVAL")
 
 	telegramToken := os.Getenv("TELEGRAM_TOKEN")
 	telegramChannel, err := strconv.ParseInt(os.Getenv("CHAT_ID"), 10, 64)
 	failOnError(err, "Failed to parse CHAT_ID ENV")
 
-	return &Env{feedURL, mongoURL, telegramToken, telegramChannel, teakInterval}
+	return &Env{
+		feedURL,
+		mongoURL,
+		telegramToken,
+		telegramChannel,
+		teakInterval,
+		db,
+		collection
+	}
 }
 
 func failOnError(err error, msg string) {
