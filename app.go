@@ -9,15 +9,11 @@ import (
 	"github.com/dissident/rs-re/db"
 	"github.com/dissident/rs-re/environment"
 	"github.com/mmcdole/gofeed"
-
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 func main() {
 	env := environment.InitEnvironment()
-	bot, err := tg.InitBot(env.TelegramToken)
-	support.FailOnError(err, "Failed tgbotapi.NewBotAPI initialize")
-
+	telega := tg.Init(env.TelegramToken, env.TelegramChannel)
 	memTitles := []string{}
 
 	database := db.InitDb(env.MongoURL, env.Db, env.Collection)
@@ -29,7 +25,7 @@ func main() {
 
 		log.Printf("Fetching RSS feed...")
 
-		newTitles := pushNewItems(memTitles, feed, bot, env, database)
+		newTitles := pushNewItems(memTitles, feed, telega, env, database)
 		memTitles = newTitles
 		support.PrintMemUsage()
 		sleepDuration, err := time.ParseDuration(env.TeakInterval)
@@ -38,19 +34,19 @@ func main() {
 	}
 }
 
-func pushNewItems(memTitles []string, feed *gofeed.Feed, bot *tgbotapi.BotAPI, env environment.Env, database db.DB) []string {
+func pushNewItems(memTitles []string, feed *gofeed.Feed, telega tg.Telegram, env environment.Env, database db.DB) []string {
 	newTitles := []string{}
 	for _, item := range feed.Items {
 		isPresent := memTitlesContains(memTitles, item.Title)
 		if !isPresent {
 			log.Printf(item.Title)
 			log.Printf(item.Link)
-			tg.SendMessage(item.Title, bot, env.TelegramChannel)
+			telega.SendMessage(item.Title)
 			database.Insert(item.Title, item.Content)
-			err := tg.SendMessage(item.Content, bot, env.TelegramChannel)
+			err := telega.SendMessage(item.Content)
 			if err != nil {
-				tg.SendMessage("Content body can't be sended. Use a link >", bot, env.TelegramChannel)
-				tg.SendMessage(item.Link, bot, env.TelegramChannel)
+				telega.SendMessage("Content body can't be sended. Use a link >")
+				telega.SendMessage(item.Link)
 			}
 		}
 		newTitles = append(newTitles, item.Title)
