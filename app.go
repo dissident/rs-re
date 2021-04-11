@@ -39,19 +39,27 @@ func pushNewItems(memTitles []string, feed *gofeed.Feed, telega tg.Telegram, env
 	for _, item := range feed.Items {
 		isPresent := memTitlesContains(memTitles, item.Title)
 		if !isPresent {
-			log.Printf(item.Title)
-			log.Printf(item.Link)
-			telega.SendMessage(item.Title)
+			logItem(item)
 			database.Insert(item.Title, item.Content)
-			err := telega.SendMessage(item.Content)
-			if err != nil {
-				telega.SendMessage("Content body can't be sended. Use a link >")
-				telega.SendMessage(item.Link)
-			}
+			telgramItem(item, telega)
 		}
 		newTitles = append(newTitles, item.Title)
 	}
 	return newTitles
+}
+
+func telgramItem(item *gofeed.Item, telega tg.Telegram) {
+	telega.SendMessage(item.Title)
+	err := telega.SendMessage(item.Content)
+	if err != nil {
+		telega.SendMessage("Content body can't be sended. Use a link >")
+		telega.SendMessage(item.Link)
+	}
+}
+
+func logItem(item *gofeed.Item) {
+	log.Printf(item.Title)
+	log.Printf(item.Link)
 }
 
 func memTitlesContains(s []string, e string) bool {
