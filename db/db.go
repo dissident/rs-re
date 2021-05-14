@@ -24,5 +24,11 @@ func InitDb(url string, dbName string, collectionName string) DB {
 
 func (db *DB) Insert(title string, body string) {
 	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
-	db.collection.InsertOne(ctx, bson.D{{"title", title}, {"body", body}})
+	timestamp := time.Now().Unix()
+	newInsert := bson.D{
+		{"title", title},
+		{"body", body},
+		{"created_at", timestamp}
+	}
+	db.collection.InsertOne(ctx, )
 }
