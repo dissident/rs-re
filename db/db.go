@@ -28,7 +28,6 @@ func (db *DB) Insert(title string, body string) {
 	newInsert := bson.D{
 		{"title", title},
 		{"body", body},
-		{"created_at", timestamp}
-	}
-	db.collection.InsertOne(ctx, )
+		{"created_at", timestamp}}
+	db.collection.InsertOne(ctx, newInsert)
 }
