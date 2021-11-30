@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"time"
 
 	"github.com/dissident/rs-re/support"
 	"github.com/dissident/rs-re/tg"
@@ -18,20 +17,15 @@ func main() {
 
 	database := db.InitDb(env.MongoURL, env.Db, env.Collection)
 
-	for {
-		fp := gofeed.NewParser()
-		feed, err := fp.ParseURL(env.FeedURL)
-		support.FailOnError(err, "Failed to parse Feed URL")
+	fp := gofeed.NewParser()
+	feed, err := fp.ParseURL(env.FeedURL)
+	support.FailOnError(err, "Failed to parse Feed URL")
 
-		log.Printf("Fetching RSS feed...")
+	log.Printf("Fetching RSS feed...")
 
-		newTitles := pushNewItems(memTitles, feed, telega, env, database)
-		memTitles = newTitles
-		support.PrintMemUsage()
-		sleepDuration, err := time.ParseDuration(env.TeakInterval)
-		support.FailOnError(err, "Failed to parse TEAK_INTERVAL ENV as a time.Duration")
-		time.Sleep(sleepDuration)
-	}
+	newTitles := pushNewItems(memTitles, feed, telega, env, database)
+	memTitles = newTitles
+	support.PrintMemUsage()
 }
 
 func pushNewItems(memTitles []string, feed *gofeed.Feed, telega tg.Telegram, env environment.Env, database db.DB) []string {
