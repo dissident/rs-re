@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/dissident/rs-re/support"
 	"github.com/dissident/rs-re/tg"
@@ -26,6 +27,7 @@ func main() {
 	newTitles := pushNewItems(memTitles, feed, telega, env, database)
 	memTitles = newTitles
 	support.PrintMemUsage()
+	os.Exit(0)
 }
 
 func pushNewItems(memTitles []string, feed *gofeed.Feed, telega tg.Telegram, env environment.Env, database db.DB) []string {
