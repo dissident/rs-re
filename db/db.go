@@ -25,9 +25,13 @@ func InitDb(url string, dbName string, collectionName string) DB {
 func (db *DB) Insert(title string, body string) {
 	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
 	timestamp := time.Now().Unix()
-	newInsert := bson.D{
-		{"title", title},
-		{"body", body},
-		{"created_at", timestamp}}
-	db.collection.InsertOne(ctx, newInsert)
+	opts := options.Update().SetUpsert(true)
+	filter := bson.M{"title": title}
+	update := bson.M{
+			"$set": bson.D{
+				{"body", body},
+				{"updated_at", timestamp}},
+			"$setOnInsert": bson.D{
+				{"created_at", timestamp}}}
+	db.collection.UpdateOne(ctx, filter, update, opts)
 }
