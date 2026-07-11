@@ -2,7 +2,9 @@ package main
 
 import (
 	"log"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/dissident/rs-re/support"
 	"github.com/dissident/rs-re/tg"
@@ -49,13 +51,26 @@ func telgramItem(item *gofeed.Item, telega tg.Telegram) {
 	err := telega.SendMessage(item.Content)
 	if err != nil {
 		telega.SendMessage("Content body can't be sended. Use a link >")
-		telega.SendMessage(item.Link)
+		telega.SendMessage(unwrapRedirect(item.Link))
 	}
 }
 
+func unwrapRedirect(link string) string {
+	parsed, err := url.Parse(link)
+	if err != nil {
+		return link
+	}
+	if strings.HasSuffix(parsed.Host, "google.com") && parsed.Path == "/url" {
+		if target := parsed.Query().Get("url"); target != "" {
+			return target
+		}
+	}
+	return link
+}
+
 func logItem(item *gofeed.Item) {
-	log.Printf(item.Title)
-	log.Printf(item.Link)
+	log.Printf("%s", item.Title)
+	log.Printf("%s", item.Link)
 }
 
 func memTitlesContains(s []string, e string) bool {
